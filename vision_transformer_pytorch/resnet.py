@@ -97,23 +97,37 @@ class PreActBottleneck(nn.Module):
 
 class ResNetV2(nn.Module):
     """Implementation of Pre-activation (v2) ResNet mode."""
-    def __init__(self, block_units, width_factor):
+    def __init__(self, block_units, width_factor,l_factor):
         super().__init__()
         width = int(64 * width_factor)
+        l_channels=int(l_factor*width)
+        ab_channels=int((1-l_factor)*width)
         self.width = width
         self.downsample = 16  # four stride=2 conv2d layer
 
         # The following will be unreadable if we split lines.
         # pylint: disable=line-too-long
-        self.root = nn.Sequential(
+        self.root_l = nn.Sequential(
             OrderedDict([('conv',
-                          StdConv2d(3,
-                                    width,
+                          StdConv2d(1,
+                                    l_channels,
                                     kernel_size=7,
                                     stride=2,
                                     bias=False,
                                     padding=3)),
-                         ('gn', nn.GroupNorm(32, width, eps=1e-6)),
+                         ('gn', nn.GroupNorm(32, l_channels, eps=1e-6)),
+                         ('relu', nn.ReLU(inplace=True)),
+                         ('pool',
+                          nn.MaxPool2d(kernel_size=3, stride=2, padding=0))]))
+        self.root_ab = nn.Sequential(
+            OrderedDict([('conv',
+                          StdConv2d(2,
+                                    ab_channels,
+                                    kernel_size=7,
+                                    stride=2,
+                                    bias=False,
+                                    padding=3)),
+                         ('gn', nn.GroupNorm(32, ab_channels, eps=1e-6)),
                          ('relu', nn.ReLU(inplace=True)),
                          ('pool',
                           nn.MaxPool2d(kernel_size=3, stride=2, padding=0))]))
@@ -158,10 +172,12 @@ class ResNetV2(nn.Module):
             ]))
 
     def forward(self, x):
-        x = self.root(x)
-        x = self.body(x)
+        x1 = self.root_l(x[:,:1,:,:])
+        x2 = self.root_ab(x[:,1:,:,:])
+        torch.cat((x1,x2),dim=1)
+        x = self.body(x1)
         return x
 
 
 def resnet50():
-    return ResNetV2(block_units=(3, 4, 9), width_factor=1)
+    return ResNetV2(block_units=(3, 4, 9), width_factor=1,l_factor=0.5)

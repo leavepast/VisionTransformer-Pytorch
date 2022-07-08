@@ -16,8 +16,8 @@ from utils import read_split_data, train_one_epoch, evaluate
 
 
 def main(args):
-    device = torch.device(args.device if torch.cuda.is_available() else "cpu")
-
+    #device = torch.device(args.device if torch.cuda.is_available() else "cpu")
+    device=torch.device("cpu")
     if os.path.exists("/media/xjw/doc/00-ubuntu-files/vit/weights") is False:
         os.makedirs("/media/xjw/doc/00-ubuntu-files/vit/weights")
 
@@ -47,7 +47,7 @@ def main(args):
 
     batch_size = args.batch_size
     #nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
-    nw=3
+    nw=1
     print('Using {} dataloader workers every process'.format(nw))
     train_loader = torch.utils.data.DataLoader(train_dataset,
                                                batch_size=batch_size,
